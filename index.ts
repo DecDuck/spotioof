@@ -1,7 +1,99 @@
+import { PrismaClient, Record, User } from "@prisma/client";
 import express from "express";
+import bodyParser from "body-parser";
+import * as bcrypt from "bcryptjs";
+
 const app = express();
+const prisma = new PrismaClient();
+
+// Totally legitimate session store.
+// No issues here.
+const sessions: { [key: string]: string } = {};
+
+app.use(bodyParser.json());
+
+app.post("/register", async (req, res) => {
+  const body = req.body;
+  const username = body.username;
+  const password = body.password;
+
+  if (!username || typeof username !== "string") {
+    res.status(400).send({ message: "Invalid or missing username" });
+    return;
+  }
+
+  if (!password || typeof password !== "string") {
+    res.status(400).send({ message: "Invalid or missing password" });
+    return;
+  }
+
+  const passwordHash = bcrypt.hashSync(password);
+  try {
+    await prisma.user.create({
+      data: {
+        username,
+        password: passwordHash,
+      },
+    });
+  } catch (e) {
+    res.status(400).send({ message: "Please choose a different username." });
+    return;
+  }
+
+  res.status(200).send({});
+});
+
+app.post("/signin", async (req, res) => {
+  const body = req.body;
+  const username = body.username;
+  const password = body.password;
+
+  if (!username || typeof username !== "string") {
+    res.status(400).send({ message: "Invalid or missing username" });
+    return;
+  }
+
+  if (!password || typeof password !== "string") {
+    res.status(400).send({ message: "Invalid or missing password" });
+    return;
+  }
+
+  let potentialUsers: Array<User>;
+  try {
+    // RAW SQL
+    potentialUsers =
+      await prisma.$queryRaw`SELECT * FROM Users WHERE username = ${username}`;
+  } catch (e) {
+    res.status(403).send({ message: "Invalid username or password" });
+    return;
+  }
+
+  if (potentialUsers.length != 1) {
+    res.status(403).send({ message: "Invalid username or password" });
+    return;
+  }
+
+  const user = potentialUsers[0];
+  const hashPassword = user.password;
+  if (!bcrypt.compareSync(password, hashPassword)) {
+    res.status(403).send({ message: "Invalid username or password" });
+    return;
+  }
+
+  const session = Math.floor(Math.random() * 10000000).toString();
+  sessions[session] = user.id;
+
+  res.status(200).send({ token: session });
+  return;
+});
 
 app.use(express.static("public"));
+
+// Don't put any routes past this point
+app.use((_, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.status(404).send({ status: 404, message: "Not Found" });
+});
 app.listen(3000, () => {
   console.log(`Server listening :3000`);
 });
