@@ -38,7 +38,15 @@ function h(tag, children = []) {
     item.addEventListener(k, v);
   }
 
+  // If children isn't an array, wrap it in one
+  children ??= [];
+  if (!(typeof children === "object" && Array.isArray(children))) {
+    children = [children];
+  }
   for (let child of children) {
+    if (typeof child === "function") {
+      child = child(h);
+    }
     switch (typeof child) {
       case "string":
         item.innerHTML = child;
@@ -51,7 +59,11 @@ function h(tag, children = []) {
         item.appendChild(child);
         break;
       default:
-        throw "Unknown type: " + typeof child;
+        const stringItem = child["toString"]
+          ? child.toString()
+          : `Unknown type: ${typeof child}`;
+        item.innerHTML = stringItem;
+        break;
     }
   }
   return item;
