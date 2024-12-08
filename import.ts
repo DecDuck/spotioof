@@ -15,6 +15,7 @@ for (const localFilename of localLibrary) {
   if (index != -1) continue; // If the record already exists, skip
 
   const fullFilepath = path.join(libraryDir, localFilename);
+  // @ts-ignore
   const metadata = await musicMetadata.parseFile(fullFilepath);
 
   const trackName = metadata.common.title ?? localFilename;
