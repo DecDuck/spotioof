@@ -1,5 +1,6 @@
 let globalToken;
 let currentTracks = [];
+let currentTrack = -1;
 
 const mainBucketElement = document.getElementById("adm-main-content");
 const mainContentBucket = window.adm.bucket(mainBucketElement);
@@ -77,10 +78,10 @@ const checkIcon = window.adm.component((h) =>
 );
 
 /*
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-  </svg>
-  */
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+</svg>
+*/
 
 const crossIcon = window.adm.component((h) =>
   h(
@@ -190,8 +191,7 @@ const trackList = window.adm.component((h) =>
                       {
                         name: "button",
                         events: {
-                            // TODO
-                          click: () => {},
+                          click: () => playTrack(trackIdx),
                         },
                         attrs: {
                           class: "text-blue-600 hover:text-blue-900",
@@ -218,6 +218,45 @@ const trackList = window.adm.component((h) =>
       )
 );
 
+const currentlyPlaying = window.adm.component((h) => {
+  if (currentTrack == -1)
+    return h(
+      {
+        name: "p",
+        attrs: {
+          class:
+            "py-2 absolute bottom-0 inset-x-0 h-fit bg-gray-200 text-gray-500 text-center",
+        },
+      },
+      "No track playing currently"
+    );
+
+  const currentTrackObject = currentTracks[currentTrack];
+  if (!currentTrackObject)
+    return h(
+      {
+        name: "p",
+        attrs: {
+          class:
+            "absolute bottom-0 inset-x-0 h-fit bg-gray-200 text-red-600 text-center",
+        },
+      },
+      "An error occurred while trying to play track"
+    );
+
+  const sourceURL = `/tracks/${currentTrackObject.id}`;
+
+  return h({
+    name: "audio",
+    attrs: {
+      controls: "",
+      src: sourceURL,
+      class: "absolute bottom-0 inset-x-0",
+      autoplay: "",
+    },
+  });
+});
+
 const appUi = window.adm.component((h, b) =>
   h(
     {
@@ -242,13 +281,14 @@ const appUi = window.adm.component((h, b) =>
           "When Spotify takes a massive oof."
         ),
         /*
-          h(
-            { name: "button", events: { click: () => swUpdateApp() } },
-            "Update Spoti-OOF"
-          ),
-          */
+        h(
+          { name: "button", events: { click: () => swUpdateApp() } },
+          "Update Spoti-OOF"
+        ),
+        */
       ]),
 
+      // Track list bucket
       b(trackList),
 
       h(
@@ -273,6 +313,9 @@ const appUi = window.adm.component((h, b) =>
         },
         icon
       ),
+
+      // Track player
+      b(currentlyPlaying),
     ]
   )
 );
@@ -285,6 +328,13 @@ async function loadTracks() {
   currentTracks = await tracks.json();
 
   trackList.rebuild();
+}
+
+function playTrack(index) {
+  currentTrack = index;
+  currentTracks[index].offline = true;
+  trackList.rebuild();
+  currentlyPlaying.rebuild();
 }
 
 async function installSW() {
